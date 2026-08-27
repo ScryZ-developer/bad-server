@@ -12,3 +12,4 @@ docker compose up -d
 5. На странице http://localhost/login/ можно авторизоваться.
 6. Админка находится по адресу http://localhost/admin/
 
+Репозиторий: https://github.com/ScryZ-developer/bad-server
