@@ -10,6 +10,10 @@ import NotFoundError from '../errors/not-found-error'
 import UnauthorizedError from '../errors/unauthorized-error'
 import User from '../models/user'
 
+const getCsrfToken = (req: Request, res: Response) => {
+    res.json({ csrfToken: req.csrfToken() })
+}
+
 // POST /auth/login
 const login = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -165,21 +169,19 @@ const refreshAccessToken = async (
 }
 
 const getCurrentUserRoles = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
 ) => {
     const userId = res.locals.user._id
     try {
-        await User.findById(userId, req.body, {
-            new: true,
-        }).orFail(
+        const user = await User.findById(userId).orFail(
             () =>
                 new NotFoundError(
                     'Пользователь по заданному id отсутствует в базе'
                 )
         )
-        res.status(200).json(res.locals.user.roles)
+        res.status(200).json(user.roles)
     } catch (error) {
         next(error)
     }
@@ -191,10 +193,13 @@ const updateCurrentUser = async (
     next: NextFunction
 ) => {
     const userId = res.locals.user._id
+    const { name, email } = req.body
     try {
-        const updatedUser = await User.findByIdAndUpdate(userId, req.body, {
-            new: true,
-        }).orFail(
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: { name, email } },
+            { new: true, runValidators: true }
+        ).orFail(
             () =>
                 new NotFoundError(
                     'Пользователь по заданному id отсутствует в базе'
@@ -207,6 +212,7 @@ const updateCurrentUser = async (
 }
 
 export {
+    getCsrfToken,
     getCurrentUser,
     getCurrentUserRoles,
     login,
