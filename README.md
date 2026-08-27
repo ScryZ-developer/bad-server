@@ -1,6 +1,5 @@
 # Проектная работа «WebLarek. Бэкенд приложения»
-
-- Репозиторий: https://github.com/ScryZ-developer/bad-server
+Репозиторий: https://github.com/ScryZ-developer/bad-server.git
 - Автор: Илья
 - Когорта: 47 когорта
 - Курс: Fullstack-разработчик Расширенный
