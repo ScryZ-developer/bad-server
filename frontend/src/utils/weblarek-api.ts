@@ -33,12 +33,50 @@ export type ApiListResponse<Type> = {
 class Api {
     private readonly baseUrl: string
     protected options: RequestInit
+    private csrfToken: string | null = null
 
     constructor(baseUrl: string, options: RequestInit = {}) {
         this.baseUrl = baseUrl
         this.options = {
             headers: {
                 ...((options.headers as object) ?? {}),
+            },
+        }
+    }
+
+    private async getCsrfToken(): Promise<string> {
+        if (this.csrfToken) {
+            return this.csrfToken
+        }
+
+        const res = await fetch(`${this.baseUrl}/auth/csrf-token`, {
+            method: 'GET',
+            credentials: 'include',
+        })
+
+        const data = await res.json()
+        if (!data.csrfToken) {
+            throw new Error('CSRF токен не получен')
+        }
+        this.csrfToken = data.csrfToken
+        return data.csrfToken
+    }
+
+    private async withCsrfHeaders(
+        options: RequestInit = {}
+    ): Promise<RequestInit> {
+        const method = options.method?.toUpperCase() || 'GET'
+        if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+            return options
+        }
+
+        const csrfToken = await this.getCsrfToken()
+        return {
+            ...options,
+            credentials: 'include',
+            headers: {
+                ...options.headers,
+                'X-CSRF-Token': csrfToken,
             },
         }
     }
@@ -55,9 +93,10 @@ class Api {
 
     protected async request<T>(endpoint: string, options: RequestInit) {
         try {
+            const requestOptions = await this.withCsrfHeaders(options)
             const res = await fetch(`${this.baseUrl}${endpoint}`, {
                 ...this.options,
-                ...options,
+                ...requestOptions,
             })
             return await this.handleResponse<T>(res)
         } catch (error) {
@@ -84,13 +123,18 @@ class Api {
                 return Promise.reject(refreshData)
             }
             setCookie('accessToken', refreshData.accessToken)
-            return await this.request<T>(endpoint, {
+            const requestOptions = await this.withCsrfHeaders({
                 ...options,
                 headers: {
                     ...options.headers,
                     Authorization: `Bearer ${getCookie('accessToken')}`,
                 },
             })
+            const res = await fetch(`${this.baseUrl}${endpoint}`, {
+                ...this.options,
+                ...requestOptions,
+            })
+            return await this.handleResponse<T>(res)
         }
     }
 }
