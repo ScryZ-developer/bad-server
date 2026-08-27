@@ -48,24 +48,31 @@ const cardsSchema = new mongoose.Schema<IProduct>(
 
 cardsSchema.index({ title: 'text' })
 
-// Можно лучше: удалять старое изображением перед обновлением сущности
+const getSafeImagePath = (fileName: string) => {
+    const imagePath = fileName.replace(/^\//, '')
+    if (imagePath.includes('..')) {
+        return null
+    }
+    return join(__dirname, '../public', imagePath)
+}
+
 cardsSchema.pre('findOneAndUpdate', async function deleteOldImage() {
     // @ts-ignore
     const updateImage = this.getUpdate().$set?.image
     const docToUpdate = await this.model.findOne(this.getQuery())
     if (updateImage && docToUpdate) {
-        unlink(
-            join(__dirname, `../public/${docToUpdate.image.fileName}`),
-            (err) => console.log(err)
-        )
+        const safePath = getSafeImagePath(docToUpdate.image.fileName)
+        if (safePath) {
+            unlink(safePath, (err) => console.log(err))
+        }
     }
 })
 
-// Можно лучше: удалять файл с изображением после удаление сущности
 cardsSchema.post('findOneAndDelete', async (doc: IProduct) => {
-    unlink(join(__dirname, `../public/${doc.image.fileName}`), (err) =>
-        console.log(err)
-    )
+    const safePath = getSafeImagePath(doc.image.fileName)
+    if (safePath) {
+        unlink(safePath, (err) => console.log(err))
+    }
 })
 
 export default mongoose.model<IProduct>('product', cardsSchema)
