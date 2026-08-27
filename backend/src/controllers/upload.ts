@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import { constants } from 'http2'
 import { unlink } from 'fs/promises'
-import sharp from 'sharp'
 import BadRequestError from '../errors/bad-request-error'
 
 const MIN_FILE_SIZE = 2 * 1024
@@ -24,6 +23,7 @@ export const uploadFile = async (
     }
 
     try {
+        const sharp = (await import('sharp')).default
         await sharp(filePath).metadata()
     } catch {
         await unlink(filePath).catch(() => {})

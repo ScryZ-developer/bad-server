@@ -31,18 +31,31 @@ app.use(json({ limit: '10kb' }))
 
 app.use(csrfProtection)
 
+app.get('/auth/csrf-token', (req, res) => {
+    res.json({ csrfToken: req.csrfToken() })
+})
+
 app.options('*', cors({ origin: ORIGIN_ALLOW, credentials: true }))
 app.use(routes)
 app.use(errors())
 app.use(errorHandler)
 
-const bootstrap = async () => {
+const connectDatabase = async () => {
     try {
         await mongoose.connect(DB_ADDRESS)
-        await app.listen(PORT, () => console.log('ok'))
     } catch (error) {
-        console.error(error)
+        console.error('MongoDB connection error, retrying in 5s...', error)
+        setTimeout(connectDatabase, 5000)
     }
+}
+
+const bootstrap = async () => {
+    app.listen(PORT, () => {
+        console.log('ok')
+        connectDatabase().catch((error) => {
+            console.error(error)
+        })
+    })
 }
 
 bootstrap()

@@ -1,7 +1,15 @@
 FROM node:22-alpine
-RUN mkdir /app
+
+RUN apk add --no-cache vips-dev
+
 WORKDIR /app
+
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --include=dev
+
 COPY . .
-CMD ["npm", "run", "dev"]
+RUN npm run build
+
+EXPOSE 3000
+
+CMD ["node", "dist/app.js"]
