@@ -3,10 +3,17 @@ import { FilterQuery } from 'mongoose'
 import NotFoundError from '../errors/not-found-error'
 import Order from '../models/order'
 import User, { IUser } from '../models/user'
+import escapeRegExp from '../utils/escapeRegExp'
+import normalizeLimit from '../utils/normalizeLimit'
 
-// TODO: Добавить guard admin
-// eslint-disable-next-line max-len
-// Get GET /customers?page=2&limit=5&sort=totalAmount&order=desc&registrationDateFrom=2023-01-01&registrationDateTo=2023-12-31&lastOrderDateFrom=2023-01-01&lastOrderDateTo=2023-12-31&totalAmountFrom=100&totalAmountTo=1000&orderCountFrom=1&orderCountTo=10
+const CUSTOMER_SORT_FIELDS = [
+    'createdAt',
+    'totalAmount',
+    'orderCount',
+    'name',
+    'lastOrderDate',
+] as const
+
 export const getCustomers = async (
     req: Request,
     res: Response,
@@ -28,6 +35,8 @@ export const getCustomers = async (
             orderCountTo,
             search,
         } = req.query
+
+        const pageLimit = normalizeLimit(limit)
 
         const filters: FilterQuery<Partial<IUser>> = {}
 
@@ -92,7 +101,10 @@ export const getCustomers = async (
         }
 
         if (search) {
-            const searchRegex = new RegExp(search as string, 'i')
+            const searchRegex = new RegExp(
+                escapeRegExp(search as string),
+                'i'
+            )
             const orders = await Order.find(
                 {
                     $or: [{ deliveryAddress: searchRegex }],
@@ -108,16 +120,19 @@ export const getCustomers = async (
             ]
         }
 
-        const sort: { [key: string]: any } = {}
+        const sort: { [key: string]: 1 | -1 } = {}
+        const allowedSortField = CUSTOMER_SORT_FIELDS.includes(
+            sortField as (typeof CUSTOMER_SORT_FIELDS)[number]
+        )
+            ? (sortField as string)
+            : 'createdAt'
 
-        if (sortField && sortOrder) {
-            sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
-        }
+        sort[allowedSortField] = sortOrder === 'desc' ? -1 : 1
 
         const options = {
             sort,
-            skip: (Number(page) - 1) * Number(limit),
-            limit: Number(limit),
+            skip: (Number(page) - 1) * pageLimit,
+            limit: pageLimit,
         }
 
         const users = await User.find(filters, null, options).populate([
@@ -137,7 +152,7 @@ export const getCustomers = async (
         ])
 
         const totalUsers = await User.countDocuments(filters)
-        const totalPages = Math.ceil(totalUsers / Number(limit))
+        const totalPages = Math.ceil(totalUsers / pageLimit)
 
         res.status(200).json({
             customers: users,
@@ -145,7 +160,7 @@ export const getCustomers = async (
                 totalUsers,
                 totalPages,
                 currentPage: Number(page),
-                pageSize: Number(limit),
+                pageSize: pageLimit,
             },
         })
     } catch (error) {
@@ -153,8 +168,6 @@ export const getCustomers = async (
     }
 }
 
-// TODO: Добавить guard admin
-// Get /customers/:id
 export const getCustomerById = async (
     req: Request,
     res: Response,
@@ -171,20 +184,17 @@ export const getCustomerById = async (
     }
 }
 
-// TODO: Добавить guard admin
-// Patch /customers/:id
 export const updateCustomer = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
     try {
+        const { name, email, phone } = req.body
         const updatedUser = await User.findByIdAndUpdate(
             req.params.id,
-            req.body,
-            {
-                new: true,
-            }
+            { $set: { name, email, phone } },
+            { new: true, runValidators: true }
         )
             .orFail(
                 () =>
@@ -199,8 +209,6 @@ export const updateCustomer = async (
     }
 }
 
-// TODO: Добавить guard admin
-// Delete /customers/:id
 export const deleteCustomer = async (
     req: Request,
     res: Response,
