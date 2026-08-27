@@ -13,7 +13,7 @@ export default function MainPage() {
     const { getProducts } = useActionCreators(productsActions)
     useEffect(() => {
         getProducts({ limit: 20 })
-    }, [])
+    }, [getProducts])
 
     const products = useSelector(productsSelector.selectProducts)
 

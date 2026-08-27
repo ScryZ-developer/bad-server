@@ -27,5 +27,5 @@ export const useOutsideClickClose = ({
         return () => {
             window.removeEventListener('mousedown', handleClick)
         }
-    }, [onClose, onChange, isOpen])
+    }, [onClose, onChange, isOpen, rootRef])
 }

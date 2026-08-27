@@ -24,7 +24,7 @@ export default function EditorInput({ onChange, value }: EditorInputProps) {
             if ($selection?.nodeName === 'A') {
                 document.execCommand('unlink')
             } else {
-                // eslint-disable-next-line no-alert
+                 
                 document.execCommand(
                     'createLink',
                     false,
